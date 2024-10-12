@@ -1,0 +1,11 @@
+[package]
+name = "openshock-tui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+crossterm = "0.28.1"
+ratatui = "0.28.1"
+rzap = "0.2.0"
+tui-textarea = "0.6.1"
+
