@@ -1,3 +1,4 @@
+use std::io::{ self, Error };
 use crossterm::event::{ DisableMouseCapture, EnableMouseCapture };
 use crossterm::terminal::{
     disable_raw_mode,
@@ -6,104 +7,108 @@ use crossterm::terminal::{
     LeaveAlternateScreen,
 };
 use ratatui::backend::CrosstermBackend;
-use ratatui::layout::{ Constraint, Direction, Flex, Layout };
-use ratatui::style::{ Color, Modifier, Style };
-use ratatui::widgets::{ Block, Borders };
+use ratatui::style::{Style, Stylize};
 use ratatui::Terminal;
-use std::io;
+use ratatui::layout::{ Constraint, Direction, Flex, Layout };
+use ratatui::widgets::{ Block, BorderType, Borders, Paragraph };
+use rzap::api::OpenShockAPIBuilder;
 use tui_textarea::{ Input, Key, TextArea };
 
-struct EntryField<'a> {
-    textarea: TextArea<'a>,
-    title: String,
+struct Screen {
+    term: Terminal<CrosstermBackend<io::StdoutLock<'static>>>,
 }
 
-impl EntryField<'_> {
-    fn inactivate(&mut self) {
-        self.textarea.set_cursor_line_style(Style::default());
-        self.textarea.set_cursor_style(Style::default());
-        self.textarea.set_block(
+impl Screen {
+    fn new() -> Result<Self, Error> {
+        let stdout = io::stdout();
+        let mut stdout = stdout.lock();
+        enable_raw_mode()?;
+        crossterm::execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+        let backend = CrosstermBackend::new(stdout);
+        Ok(Screen { term: Terminal::new(backend)? })
+    }
+
+    fn api_key_prompt(&mut self) -> Result<String, Error> {
+        let mut text_area = TextArea::default();
+        text_area.set_placeholder_text("Enter your Openshock API KEY");
+        text_area.set_block(
             Block::default()
-                .borders(Borders::ALL)
-                .style(Style::default().fg(Color::DarkGray))
-                .title(self.title.clone())
+                .borders(Borders::all())
+                .border_type(BorderType::Rounded)
+                .title("API Key")
         );
-        self.textarea.set_placeholder_text("");
-    }
-    fn activate(&mut self) {
-        let title = self.title.clone();
-        self.textarea.set_cursor_line_style(Style::default().add_modifier(Modifier::UNDERLINED));
-        self.textarea.set_cursor_style(Style::default().add_modifier(Modifier::REVERSED));
-        self.textarea.set_placeholder_text(format!("Please enter your {title}"));
-        self.textarea.set_block(
-            Block::default().borders(Borders::ALL).style(Style::default()).title(title)
-        );
-    }
-}
+        text_area.set_mask_char('*');
 
-fn main() -> io::Result<()> {
-    let stdout = io::stdout();
-    let mut stdout = stdout.lock();
-    enable_raw_mode()?;
-    crossterm::execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut term = Terminal::new(backend)?;
+        loop {
+            self.term.draw(|f| {
+                let outer_layout = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([Constraint::Max(56)])
+                    .flex(Flex::Center)
+                    .split(f.area());
 
-    let usernamearea = EntryField {
-        textarea: TextArea::default(),
-        title: "Username".to_string(),
-    };
+                let inner_layout = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([Constraint::Length(3)].as_ref())
+                    .flex(Flex::Center)
+                    .split(outer_layout[0]);
+                f.render_widget(&text_area, inner_layout[0]);
+            })?;
 
-    let mut passwordarea = EntryField {
-        textarea: TextArea::default(),
-        title: "Password".to_string(),
-    };
-    passwordarea.textarea.set_mask_char('*');
-
-    let mut textareas = [usernamearea, passwordarea];
-    let mut which = 0;
-    textareas[0].activate();
-    textareas[1].inactivate();
-
-    loop {
-        term.draw(|f| {
-            let outer_layout = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Max(40)])
-                .flex(Flex::Center)
-                .split(f.area());
-
-            let inner_layout = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Length(3), Constraint::Length(3)].as_ref())
-                .flex(Flex::Center)
-                .split(outer_layout[0]);
-
-            for (textarea, chunk) in textareas.iter().zip(inner_layout.iter()) {
-                f.render_widget(&textarea.textarea, *chunk);
-            }
-        })?;
-        
-        match crossterm::event::read()?.into() {
-            Input { key: Key::Esc, .. } => {
-                break;
-            }
-            Input { key: Key::Enter, .. } => {
-                textareas[which].inactivate();
-                which = (which + 1) % 2;
-                textareas[which].activate();
-            }
-            input => {
-                textareas[which].textarea.input(input);
+            match crossterm::event::read()?.into() {
+                Input { key: Key::Enter, .. } => {
+                    break;
+                }
+                input => {
+                    text_area.input(input);
+                }
             }
         }
+        Ok(text_area.lines()[0].clone())
     }
 
-    disable_raw_mode()?;
-    crossterm::execute!(term.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
-    term.show_cursor()?;
 
-    println!("Username: {:?}", textareas[0].textarea.lines());
-    println!("Password: {:?}", textareas[1].textarea.lines());
+    fn show_hello(&mut self, username: String) -> Result<(), Error>{
+        let paragraph = Paragraph::new(String::from(format!("Hello {}!",username))).centered().style(Style::new().bold());
+
+        loop {
+            self.term.draw(|f| {
+                let outer_layout = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([Constraint::Max(56)])
+                    .flex(Flex::Center)
+                    .split(f.area());
+                let inner_layout = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([Constraint::Length(3)].as_ref())
+                    .flex(Flex::Center)
+                    .split(outer_layout[0]);
+                f.render_widget(&paragraph, inner_layout[0]);
+            })?;
+
+            match crossterm::event::read()?.into() {
+                Input { key: Key::Enter, .. } => {
+                    break;
+                }
+                _ => {}
+            }
+        };
+        Ok(())
+        }
+
+    fn close(&mut self) -> Result<(), Error> {
+        disable_raw_mode()?;
+        crossterm::execute!(self.term.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+        self.term.show_cursor()
+    }
+}
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut screen = Screen::new()?;
+    let openshock_api =  OpenShockAPIBuilder::new().with_default_api_token(screen.api_key_prompt()?).build()?;
+    let username = openshock_api.get_user_info(None).await?.name.unwrap();
+    screen.show_hello(username)?;
+    screen.close()?;
     Ok(())
 }
