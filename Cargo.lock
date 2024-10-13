@@ -791,9 +791,7 @@ checksum = "f3cb5ba0dc43242ce17de99c180e96db90b235b8a9fdc9543c96d2209116bd9f"
 
 [[package]]
 name = "rzap"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "daf22daa8551414557556f9ed25bc0179ca03fec556e81976e5d8b3d7e8c31a3"
+version = "0.2.1"
 dependencies = [
  "reqwest",
  "serde",

@@ -1,3 +1,4 @@
+use std::error;
 use std::io::{ self, Error };
 use crossterm::event::{ DisableMouseCapture, EnableMouseCapture };
 use crossterm::terminal::{
@@ -11,7 +12,7 @@ use ratatui::style::{Style, Stylize};
 use ratatui::Terminal;
 use ratatui::layout::{ Constraint, Direction, Flex, Layout };
 use ratatui::widgets::{ Block, BorderType, Borders, Paragraph };
-use rzap::api::OpenShockAPIBuilder;
+use rzap::api_builder::OpenShockAPIBuilder;
 use tui_textarea::{ Input, Key, TextArea };
 
 struct Screen {
@@ -103,12 +104,24 @@ impl Screen {
     }
 }
 
+impl Drop for Screen {
+    fn drop(&mut self) {
+        self.close().unwrap();
+    }
+}
+
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut screen = Screen::new()?;
+async fn main() -> Result<(), Box<dyn error::Error>>{
+    let mut screen = Screen::new().unwrap();
     let openshock_api =  OpenShockAPIBuilder::new().with_default_api_token(screen.api_key_prompt()?).build()?;
-    let username = openshock_api.get_user_info(None).await?.name.unwrap();
-    screen.show_hello(username)?;
+    let resp = openshock_api.get_user_info(None).await?;
+    match resp {
+        Some(self_response) => match self_response.name {
+            Some(username) => screen.show_hello(username)?,
+            None => todo!()
+        }
+        None => todo!(),
+    }
     screen.close()?;
     Ok(())
 }

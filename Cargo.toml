@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 crossterm = "0.28.1"
 ratatui = "0.28.1"
-rzap = "0.2.0"
+rzap = {path ="../rzap"}
 tokio = "1.40.0"
 tui-textarea = "0.6.1"
 
