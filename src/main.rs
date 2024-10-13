@@ -8,7 +8,7 @@ use crossterm::terminal::{
     LeaveAlternateScreen,
 };
 use ratatui::backend::CrosstermBackend;
-use ratatui::style::{Style, Stylize};
+use ratatui::style::{ Style, Stylize };
 use ratatui::Terminal;
 use ratatui::layout::{ Constraint, Direction, Flex, Layout };
 use ratatui::widgets::{ Block, BorderType, Borders, Paragraph };
@@ -68,9 +68,10 @@ impl Screen {
         Ok(text_area.lines()[0].clone())
     }
 
-
-    fn show_hello(&mut self, username: String) -> Result<(), Error>{
-        let paragraph = Paragraph::new(String::from(format!("Hello {}!",username))).centered().style(Style::new().bold());
+    fn show_hello(&mut self, username: String) -> Result<(), Error> {
+        let paragraph = Paragraph::new(String::from(format!("Hello {}!", username)))
+            .centered()
+            .style(Style::new().bold());
 
         loop {
             self.term.draw(|f| {
@@ -93,9 +94,9 @@ impl Screen {
                 }
                 _ => {}
             }
-        };
-        Ok(())
         }
+        Ok(())
+    }
 
     fn close(&mut self) -> Result<(), Error> {
         disable_raw_mode()?;
@@ -111,15 +112,18 @@ impl Drop for Screen {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn error::Error>>{
+async fn main() -> Result<(), Box<dyn error::Error>> {
     let mut screen = Screen::new().unwrap();
-    let openshock_api =  OpenShockAPIBuilder::new().with_default_api_token(screen.api_key_prompt()?).build()?;
+    let openshock_api = OpenShockAPIBuilder::new()
+        .with_default_api_token(screen.api_key_prompt()?)
+        .build()?;
     let resp = openshock_api.get_user_info(None).await?;
     match resp {
-        Some(self_response) => match self_response.name {
-            Some(username) => screen.show_hello(username)?,
-            None => todo!()
-        }
+        Some(self_response) =>
+            match self_response.name {
+                Some(username) => screen.show_hello(username)?,
+                None => todo!(),
+            }
         None => todo!(),
     }
     screen.close()?;
