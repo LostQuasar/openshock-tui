@@ -11,7 +11,7 @@ use ratatui::backend::CrosstermBackend;
 use ratatui::style::{ Style, Stylize };
 use ratatui::Terminal;
 use ratatui::layout::{ Constraint, Direction, Flex, Layout };
-use ratatui::widgets::{ Block, BorderType, Borders, Paragraph };
+use ratatui::widgets::{ Block, BorderType, Borders, List, ListDirection, ListState, Paragraph };
 use rzap::api_builder::OpenShockAPIBuilder;
 use tui_textarea::{ Input, Key, TextArea };
 
@@ -98,6 +98,50 @@ impl Screen {
         Ok(())
     }
 
+    fn show_shocker_list(&mut self) -> Result<(), Error> {
+        let items = ["Leg Shocker", "Arm Shocker", "Thigh Shocker"];
+        let mut state = ListState::default().with_selected(Some(0));
+        let list = List::new(items)
+            .block(Block::bordered().title("Shockers").border_type(BorderType::Rounded))
+            .style(Style::new().white())
+            .highlight_style(Style::new().bold())
+            .repeat_highlight_symbol(true)
+            .direction(ListDirection::TopToBottom);
+        loop {
+            self.term.draw(|f| {
+                let outer_layout = Layout::default()
+                    .direction(Direction::Horizontal)
+                    .constraints([Constraint::Max(24)])
+                    .flex(Flex::Center)
+                    .split(f.area());
+                let inner_layout = Layout::default()
+                    .direction(Direction::Vertical)
+                    .constraints([Constraint::Max((items.len()+2).try_into().unwrap())].as_ref())
+                    .flex(Flex::Center)
+                    .split(outer_layout[0]);
+                f.render_stateful_widget(&list, inner_layout[0], &mut state);
+            })?;
+
+            match crossterm::event::read()?.into() {
+                Input { key,.. } => {
+                    match key {
+                        Key::Down => {
+                            state.select_next();
+                        }
+                        Key::Up => {
+                            state.select_previous();
+                        }
+                        Key::Enter => {
+                            break;
+                        }
+                        _ => {},
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn close(&mut self) -> Result<(), Error> {
         disable_raw_mode()?;
         crossterm::execute!(self.term.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
@@ -126,6 +170,7 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
             }
         None => todo!(),
     }
+    let _ = screen.show_shocker_list();
     screen.close()?;
     Ok(())
 }
