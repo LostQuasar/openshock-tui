@@ -1,5 +1,6 @@
 use std::error;
 use std::io::{ self, Error };
+use std::time::{Duration, Instant};
 use crossterm::event::{ DisableMouseCapture, EnableMouseCapture };
 use crossterm::terminal::{
     disable_raw_mode,
@@ -12,6 +13,7 @@ use ratatui::style::{ Style, Stylize };
 use ratatui::Terminal;
 use ratatui::layout::{ Constraint, Direction, Flex, Layout };
 use ratatui::widgets::{ Block, BorderType, Borders, List, ListDirection, ListState, Paragraph };
+use rzap::api::ListShockerSource;
 use rzap::api_builder::OpenShockAPIBuilder;
 use tui_textarea::{ Input, Key, TextArea };
 
@@ -72,7 +74,7 @@ impl Screen {
         let paragraph = Paragraph::new(String::from(format!("Hello {}!", username)))
             .centered()
             .style(Style::new().bold());
-
+        let display_time = Instant::now();
         loop {
             self.term.draw(|f| {
                 let outer_layout = Layout::default()
@@ -94,29 +96,35 @@ impl Screen {
                 }
                 _ => {}
             }
+            if display_time.elapsed() > Duration::from_secs(3){
+                break;
+            }
         }
         Ok(())
     }
 
-    fn show_shocker_list(&mut self) -> Result<(), Error> {
-        let items = ["Leg Shocker", "Arm Shocker", "Thigh Shocker"];
+    fn show_shocker_list(&mut self, items: Vec<&str>) -> Result<String, Error> {
+        //let items = ["Leg Shocker", "Arm Shocker", "Thigh Shocker"];
         let mut state = ListState::default().with_selected(Some(0));
-        let list = List::new(items)
+        let list_quantity = &items.len();
+        let list = List::new(items.to_owned())
             .block(Block::bordered().title("Shockers").border_type(BorderType::Rounded))
             .style(Style::new().white())
-            .highlight_style(Style::new().bold())
-            .repeat_highlight_symbol(true)
+            .highlight_style(Style::new().bold().light_blue())
+            .highlight_symbol("  ")
+            .repeat_highlight_symbol(false)
             .direction(ListDirection::TopToBottom);
+            
         loop {
             self.term.draw(|f| {
                 let outer_layout = Layout::default()
                     .direction(Direction::Horizontal)
-                    .constraints([Constraint::Max(24)])
+                    .constraints([Constraint::Max(28)]) 
                     .flex(Flex::Center)
                     .split(f.area());
                 let inner_layout = Layout::default()
                     .direction(Direction::Vertical)
-                    .constraints([Constraint::Max((items.len()+2).try_into().unwrap())].as_ref())
+                    .constraints([Constraint::Max((list_quantity+2).try_into().unwrap())].as_ref())
                     .flex(Flex::Center)
                     .split(outer_layout[0]);
                 f.render_stateful_widget(&list, inner_layout[0], &mut state);
@@ -132,14 +140,13 @@ impl Screen {
                             state.select_previous();
                         }
                         Key::Enter => {
-                            break;
+                            return Ok(items.get(state.selected().unwrap()).unwrap().to_string());
                         }
                         _ => {},
                     }
                 }
             }
         }
-        Ok(())
     }
 
     fn close(&mut self) -> Result<(), Error> {
@@ -170,7 +177,28 @@ async fn main() -> Result<(), Box<dyn error::Error>> {
             }
         None => todo!(),
     }
-    let _ = screen.show_shocker_list();
+    let mut available_shockers_names: Vec<String> = vec![]; 
+    let resp = openshock_api.get_shockers(ListShockerSource::Own, None).await?;
+    match resp {
+        Some(list_shockers_response) => {
+            for shocker in list_shockers_response {
+                available_shockers_names.push(shocker.shockers.iter().map(|s| s.name.as_deref().unwrap()).collect());
+            }
+        }
+        None => todo!()
+    }
+    let resp = openshock_api.get_shockers(ListShockerSource::Shared, None).await?;
+    match resp {
+        Some(list_shockers_response) => {
+            for shocker in list_shockers_response {
+                available_shockers_names.push(shocker.shockers.iter().map(|s|s.name.as_deref().unwrap()).collect());
+            }
+        }
+        None => todo!()
+    }
+
+    let selected = screen.show_shocker_list(available_shockers_names.iter().map(|s| &**s).collect()).unwrap();
     screen.close()?;
+    print!("{}",selected);
     Ok(())
 }
