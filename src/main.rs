@@ -1,5 +1,7 @@
-use std::error;
-use std::io::{ self, Error };
+use std::error::Error;
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::{env, io};
 use std::time::{Duration, Instant};
 use crossterm::event::{ DisableMouseCapture, EnableMouseCapture };
 use crossterm::terminal::{
@@ -16,13 +18,13 @@ use ratatui::widgets::{ Block, BorderType, Borders, List, ListDirection, ListSta
 use rzap::api::ListShockerSource;
 use rzap::api_builder::OpenShockAPIBuilder;
 use tui_textarea::{ Input, Key, TextArea };
-
 struct Screen {
     term: Terminal<CrosstermBackend<io::StdoutLock<'static>>>,
 }
+type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 impl Screen {
-    fn new() -> Result<Self, Error> {
+    fn new() -> Result<Self> {
         let stdout = io::stdout();
         let mut stdout = stdout.lock();
         enable_raw_mode()?;
@@ -31,7 +33,7 @@ impl Screen {
         Ok(Screen { term: Terminal::new(backend)? })
     }
 
-    fn api_key_prompt(&mut self) -> Result<String, Error> {
+    fn api_key_prompt(&mut self) -> Result<String> {
         let mut text_area = TextArea::default();
         text_area.set_placeholder_text("Enter your Openshock API KEY");
         text_area.set_block(
@@ -70,7 +72,7 @@ impl Screen {
         Ok(text_area.lines()[0].clone())
     }
 
-    fn show_hello(&mut self, username: String) -> Result<(), Error> {
+    fn show_hello(&mut self, username: String) -> Result<()> {
         let paragraph = Paragraph::new(String::from(format!("Hello {}!", username)))
             .centered()
             .style(Style::new().bold());
@@ -96,14 +98,14 @@ impl Screen {
                 }
                 _ => {}
             }
-            if display_time.elapsed() > Duration::from_secs(3){
+            if display_time.elapsed() > Duration::from_secs(2){
                 break;
             }
         }
         Ok(())
     }
 
-    fn show_shocker_list(&mut self, items: Vec<&str>) -> Result<String, Error> {
+    fn show_shocker_list(&mut self, items: Vec<&str>) -> Result<String> {
         //let items = ["Leg Shocker", "Arm Shocker", "Thigh Shocker"];
         let mut state = ListState::default().with_selected(Some(0));
         let list_quantity = &items.len();
@@ -149,10 +151,10 @@ impl Screen {
         }
     }
 
-    fn close(&mut self) -> Result<(), Error> {
+    fn close(&mut self) -> Result<()> {
         disable_raw_mode()?;
         crossterm::execute!(self.term.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
-        self.term.show_cursor()
+        Ok(self.term.show_cursor()?)
     }
 }
 
@@ -163,10 +165,28 @@ impl Drop for Screen {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn error::Error>> {
+async fn main() -> Result<()>{
+    dotenvy::dotenv()?;
+    let apikey =env::var("APIKEY");
     let mut screen = Screen::new().unwrap();
+
+    let key; 
+    match apikey {
+        Ok(apikey) => key = apikey,
+        Err(_) => {
+            key = screen.api_key_prompt()?;
+            let mut file = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .append(true)
+            .open(".env")
+            .unwrap();
+            file.write(format!("APIKEY = {}",key).as_bytes())?;
+        },
+    }
+
     let openshock_api = OpenShockAPIBuilder::new()
-        .with_default_api_token(screen.api_key_prompt()?)
+        .with_default_api_token(key)
         .build()?;
     let resp = openshock_api.get_user_info(None).await?;
     match resp {
