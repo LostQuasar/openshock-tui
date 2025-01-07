@@ -1,19 +1,9 @@
-use std::cmp::Ordering;
 use std::fs::OpenOptions;
 use std::io::{stdout, Write};
 use std::{ env, error, io };
 use crossterm::event::DisableMouseCapture;
 use crossterm::execute;
-use crossterm::terminal::{ * };
-use ratatui::style::{ Color, Style, Stylize };
-use ratatui::text::Span;
-use ratatui::Frame;
-use ratatui::layout::{ Constraint, Layout, Rect };
-use ratatui::widgets::{
-    Block,
-    Gauge,
-    
-};
+use crossterm::terminal::{disable_raw_mode, LeaveAlternateScreen};
 use rzap::api::ListShockerSource;
 use rzap::api_builder::OpenShockAPIBuilder;
 use screen::Screen;

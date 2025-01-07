@@ -1,6 +1,5 @@
-use std::cell;
-
-use crate::*;
+use std::{ cell, cmp::Ordering };
+use ratatui::{ layout::*, style::*, text::Span, widgets::*, Frame };
 
 #[derive(PartialEq)]
 pub(crate) enum GaugeFormat {
@@ -56,4 +55,3 @@ pub(crate) fn render_gauge(gauge: &GaugeObject, selected: bool, area: Rect, f: &
         );
     }
 }
-
