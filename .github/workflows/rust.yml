@@ -36,15 +36,17 @@ jobs:
         run: cargo build --release --target ${{ matrix.target }}
       - name: Run tests
         run: cargo test --verbose
+      - name: Create output directory
+        run: mkdir -p target/debug
       - name: Verify CLI functionality
         run: |
-          cargo run -- 5 plus 3
-          cargo run -- 4 squared
+          cargo build
+          ./target/debug/${{ env.BINARY_NAME }} 5 plus 3
+          ./target/debug/${{ env.BINARY_NAME }} 4 squared
       - name: Prepare artifact
         run: |
           mkdir -p artifacts
           cp target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}${{ matrix.suffix }} artifacts/${{ env.BINARY_NAME }}-${{ matrix.target }}${{ matrix.suffix }}
-        shell: bash
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
