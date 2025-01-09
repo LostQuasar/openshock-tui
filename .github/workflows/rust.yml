@@ -60,14 +60,9 @@ jobs:
             artifacts/*
           generate_release_notes: true
       - name: Cargo Publish
-        # You may pin to the exact commit or the version.
-        # uses: ryohidaka/action-cargo-publish@be41ba19145bd21857b40009c3fc6512748be4be
         uses: ryohidaka/action-cargo-publish@v0.1.0
         with:
-          # The path to the Cargo project root.
           path: src
-          # The token to publish to crates.io.
           token: ${{secrets.CARGO_KEY}}
-          # If true, run cargo publish with the --dry-run flag.
           dry-run: false
           
