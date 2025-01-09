@@ -2,9 +2,9 @@ name: OpenShock-TUI
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "master" , "workflows" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "master" , "workflows" ]
 
 env:
   CARGO_TERM_COLOR: always
