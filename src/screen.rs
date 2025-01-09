@@ -22,6 +22,7 @@ pub mod gauges;
 
 pub(crate) struct Screen {
     pub(crate) term: Terminal<CrosstermBackend<StdoutLock<'static>>>,
+    pub should_exit: cell::Cell<bool>
 }
 
 impl Drop for Screen {
@@ -37,7 +38,7 @@ impl Screen {
         enable_raw_mode()?;
         crossterm::execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
         let backend = CrosstermBackend::new(stdout);
-        Ok(Screen { term: Terminal::new(backend)? })
+        Ok(Screen { term: Terminal::new(backend)?, should_exit: cell::Cell::new(false)})
     }
 
     pub(crate) fn api_key_prompt(&mut self) -> Result<String> {
@@ -67,15 +68,20 @@ impl Screen {
                 f.render_widget(&text_area, inner_layout[0]);
             })?;
 
-            match crossterm::event::read()?.into() {
-                Input { key: Key::Enter, .. } => {
-                    break;
+            let input: Input =  crossterm::event::read()?.into();
+            match input.key {
+                Key::Enter => {
+                    break
                 }
-                input => {
+                Key::Esc => {
+                    self.should_exit.set(true);
+                    break
+                }
+                _ => {
                     text_area.input(input);
                 }
             }
-        }
+        }   
         Ok(text_area.lines()[0].clone())
     }
 
@@ -98,14 +104,15 @@ impl Screen {
                     .split(outer_layout[0]);
                 f.render_widget(&paragraph, inner_layout[0]);
             })?;
-
-            match crossterm::event::read()?.into() {
-                Input { key: Key::Enter, .. } => {
-                    break;
+            if crossterm::event::poll(Duration::from_millis(50))? {
+                match crossterm::event::read()?.into() {
+                    Input { key: Key::Enter, .. } => {
+                        break;
+                    }
+                    _ => {}
                 }
-                _ => {}
             }
-            if display_time.elapsed() > Duration::from_millis(1500) {
+            if display_time.elapsed() > Duration::from_secs(1) {
                 break;
             }
         }
@@ -113,7 +120,6 @@ impl Screen {
     }
 
     pub(crate) fn show_shocker_list(&mut self, items: &Vec<ShockerResponse>) -> Result<usize> {
-        //let items = ["Leg Shocker", "Arm Shocker", "Thigh Shocker"];
         let mut state = ListState::default().with_selected(Some(0));
         let list_quantity = &items.len();
         let names: Vec<String> = items
@@ -156,6 +162,10 @@ impl Screen {
                         }
                         Key::Enter => {
                             return Ok(state.selected().unwrap());
+                        }                        
+                        Key::Esc => {
+                            self.should_exit.set(true);
+                            return Ok(0);
                         }
                         _ => {}
                     }

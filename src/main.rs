@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
     let file_result = OpenOptions::new()
         .read(true)
         .open(format!("{}/data.bin", app_dirs.data_dir.display()));
-    let key;
+    let mut key= "".to_string();
     match file_result {
         Ok(mut file) => {
             let mut buffer = [0; 64];
@@ -50,13 +50,23 @@ async fn main() -> Result<()> {
             key = String::from_utf8(buffer.to_vec())?;
         }
         Err(_) => {
-            key = screen.api_key_prompt()?;
-            //TODO: VERIFY BEFORE WRITING
-            let mut file = OpenOptions::new()
-                .create_new(true)
-                .write(true)
-                .open(format!("{}/data.bin", app_dirs.data_dir.display()))?;
-            let _ = file.write(key.as_bytes());
+            let mut key_invalid = true;
+            while key_invalid {
+                key = screen.api_key_prompt()?;
+                if screen.should_exit.get() {
+                    screen.close()?;
+                    return Ok(());
+                }
+                let buffer = key.as_bytes();
+                if buffer.len() == 64 {
+                    let mut file = OpenOptions::new()
+                    .create_new(true)
+                    .write(true)
+                    .open(format!("{}/data.bin", app_dirs.data_dir.display()))?;
+                    let _ = file.write(buffer);
+                    key_invalid = false;
+                }
+            }
         }
     }
     let openshock_api = OpenShockAPIBuilder::new()
@@ -83,9 +93,11 @@ async fn main() -> Result<()> {
         }
         None => todo!(),
     }
-
     let index = screen.show_shocker_list(&available_shockers)?;
-
+    if screen.should_exit.get() {
+        screen.close()?;
+        return Ok(());
+    }
     screen.show_shocker_controls(openshock_api, &available_shockers[index].id).await?;
     screen.close()?;
     Ok(())
