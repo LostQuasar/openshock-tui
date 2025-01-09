@@ -4,6 +4,7 @@ version = "1.0.0"
 edition = "2021"
 description = "A ratatui based terminal user interface for OpenShock shockers." 
 license = "MIT"
+repository = "https://github.com/lostquasar/openshock-tui"
 
 [dependencies]
 crossterm = "0.28.1"
