@@ -7,7 +7,7 @@ use rzap::{ api::OpenShockAPI, data_type::{ ControlType, ShockerResponse } };
 use tui_textarea::{ Input, Key, TextArea };
 use ratatui::{ layout::*, prelude::CrosstermBackend, style::*, widgets::*, Terminal };
 
-const CONTROL_TYPE_ARRAY: [&'static str; 3] = ["Shock ⚡", "Vibrate 📳", "Sound 🔊"];
+const CONTROL_TYPE_ARRAY: [&'static str; 3] = ["Shock", "Vibrate", "Sound"];
 const ACTION_ARRAY: [&'static str; 4] = [
     "Shocking...",
     "Vibratating...",
@@ -22,6 +22,12 @@ pub mod gauges;
 
 pub(crate) struct Screen {
     pub(crate) term: Terminal<CrosstermBackend<StdoutLock<'static>>>,
+}
+
+impl Drop for Screen {
+    fn drop(&mut self) {
+        let _ = restore_tui();
+    }
 }
 
 impl Screen {
