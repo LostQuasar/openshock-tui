@@ -14,12 +14,13 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        rust: [stable]
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             suffix: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            suffix: ".exe"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -27,7 +28,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: ${{ matrix.rust }}
+          toolchain: stable
           target: ${{ matrix.target }}
           override: true
       - name: Build
@@ -38,6 +39,7 @@ jobs:
         run: |
           mkdir -p artifacts
           cp target/${{ matrix.target }}/release/${{ env.BINARY_NAME }}${{ matrix.suffix }} artifacts/${{ env.BINARY_NAME }}-${{ matrix.target }}${{ matrix.suffix }}
+        shell: bash
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
