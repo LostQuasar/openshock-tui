@@ -1,6 +1,6 @@
 [package]
 name = "openshock-tui"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 description = "A ratatui based terminal user interface for OpenShock shockers." 
 license = "MIT"
